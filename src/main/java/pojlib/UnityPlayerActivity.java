@@ -48,7 +48,9 @@ import pojlib.input.gamepad.DefaultDataProvider;
 import pojlib.input.gamepad.Gamepad;
 import pojlib.util.Constants;
 import pojlib.util.FileUtil;
+import pojlib.util.JREUtils;
 import pojlib.util.Logger;
+import pojlib.util.json.MinecraftInstances;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
 
@@ -136,6 +138,36 @@ public class UnityPlayerActivity extends ActivityGroup implements IUnityPlayerLi
 
         Logger.getInstance().appendToLog("LWJGL installed");
         return lwjgl.getAbsolutePath();
+    }
+
+    /**
+     * Installs the LWJGL build an instance needs and returns its classpath entries.
+     * Instances on LWJGL 3.4 (Minecraft 26.1+) get their own jars and natives; the natives go to
+     * internal storage because external storage is mounted noexec.
+     */
+    public static String installLWJGL(Activity activity, MinecraftInstances.Instance instance) throws IOException {
+        if (instance.lwjglVersion == null) {
+            return installLWJGL(activity);
+        }
+
+        Logger.getInstance().appendToLog("Checking LWJGL " + instance.lwjglVersion);
+        String assetDir = "lwjgl/" + instance.lwjglVersion;
+        File jarDir = new File(Constants.USER_HOME + "/lwjgl3/" + instance.lwjglVersion);
+        File glfwClasses = new File(jarDir, "lwjgl-glfw-classes.jar");
+        File core = new File(jarDir, "lwjgl.jar");
+        FileUtil.copyAssetIfChanged(activity, assetDir + "/lwjgl-glfw-classes.jar", glfwClasses);
+        FileUtil.copyAssetIfChanged(activity, assetDir + "/lwjgl.jar", core);
+
+        File nativesDir = new File(JREUtils.getLwjglNativesDir(activity, instance));
+        String[] natives = activity.getAssets().list(assetDir + "/natives");
+        if (natives != null) {
+            for (String lib : natives) {
+                FileUtil.copyAssetIfChanged(activity, assetDir + "/natives/" + lib, new File(nativesDir, lib));
+            }
+        }
+
+        Logger.getInstance().appendToLog("LWJGL " + instance.lwjglVersion + " installed");
+        return glfwClasses.getAbsolutePath() + File.pathSeparator + core.getAbsolutePath();
     }
 
     public void reinitUnity() {

@@ -164,6 +164,7 @@ public class InstanceHandler {
         instance.versionType = minecraftVersionInfo.type;
         instance.mainClass = modLoaderVersionInfo.mainClass;
         instance.javaVersion = minecraftVersionInfo.javaVersion != null ? minecraftVersionInfo.javaVersion.majorVersion : 0;
+        instance.lwjglVersion = JREUtils.getLwjglVersion(minecraftVersionInfo);
 
         // Install minecraft
         VersionInfo finalModLoaderVersionInfo = modLoaderVersionInfo;
@@ -183,7 +184,7 @@ public class InstanceHandler {
                 CompletableFuture<String> minecraftClasspath = Installer.installLibraries(minecraftVersionInfo, gameDir);
                 CompletableFuture<String> modLoaderClasspath = Installer.installLibraries(finalModLoaderVersionInfo, gameDir);
                 CompletableFuture<String> assetsFuture = Installer.installAssets(minecraftVersionInfo, gameDir);
-                String lwjgl = UnityPlayerActivity.installLWJGL(activity);
+                String lwjgl = UnityPlayerActivity.installLWJGL(activity, instance);
 
                 CompletableFuture<Void> installFuture = CompletableFuture.allOf(clientClasspath, minecraftClasspath, modLoaderClasspath, assetsFuture);
                 installFuture.get();

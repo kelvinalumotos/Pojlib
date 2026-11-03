@@ -77,6 +77,8 @@ public class MinecraftInstances {
         public String mainClass;
         // Java major version the game needs, 0 for instances made before this was stored
         public int javaVersion;
+        // Bundled LWJGL to use ("3.4.1"), null for the default LWJGL 3.3 build
+        public String lwjglVersion;
         public ProjectInfo[] extProjects;
         public boolean defaultMods;
 

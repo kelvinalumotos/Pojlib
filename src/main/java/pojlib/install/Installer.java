@@ -136,8 +136,7 @@ public class Installer {
                 }
             }
 
-            // Add our GLFW
-            classpath.add(Constants.USER_HOME + "/lwjgl3/lwjgl-glfw-classes.jar");
+            // Our LWJGL is added by InstanceHandler, which knows which build the instance needs
             // DNS SRV Resolver fix
             classpath.add(Constants.USER_HOME + "/hacks/ResConfHack.jar");
 

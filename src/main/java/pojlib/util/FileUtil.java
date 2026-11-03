@@ -37,6 +37,28 @@ public class FileUtil {
         return buffer;
     }
 
+    /**
+     * Copies an asset to dest unless dest already has the same content.
+     * Reads the asset in a loop, so compressed assets are not truncated.
+     */
+    public static void copyAssetIfChanged(Context ctx, String asset, File dest) throws IOException {
+        byte[] content;
+        try (InputStream in = ctx.getAssets().open(asset)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[64 * 1024];
+            int len;
+            while ((len = in.read(buf)) != -1) {
+                out.write(buf, 0, len);
+            }
+            content = out.toByteArray();
+        }
+        if (dest.isFile() && dest.length() == content.length
+                && java.util.Arrays.equals(Files.readAllBytes(dest.toPath()), content)) {
+            return;
+        }
+        write(dest.getAbsolutePath(), content);
+    }
+
     public static boolean matchingAssetFile(File sourceFile, byte[] assetFile) throws IOException {
         byte[] sf = Files.readAllBytes(sourceFile.toPath());
         return sf == assetFile;

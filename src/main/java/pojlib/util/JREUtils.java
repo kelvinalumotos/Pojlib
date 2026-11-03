@@ -31,6 +31,7 @@ import pojlib.API;
 import pojlib.UnityPlayerActivity;
 import pojlib.install.Installer;
 import pojlib.install.MinecraftMeta;
+import pojlib.install.VersionInfo;
 import pojlib.util.json.MinecraftInstances;
 
 public class JREUtils {
@@ -70,6 +71,23 @@ public class JREUtils {
 
     public static String getRuntimeDir(Context ctx, MinecraftInstances.Instance instance) {
         return ctx.getFilesDir() + "/runtimes/" + getRuntimeName(instance);
+    }
+
+    // Minecraft 26.1+ is built against LWJGL 3.4, which needs the bundled 3.4.1 jars and natives
+    public static String getLwjglVersion(VersionInfo versionInfo) {
+        if (versionInfo.libraries == null) {
+            return null;
+        }
+        for (VersionInfo.Library library : versionInfo.libraries) {
+            if (library.name != null && library.name.startsWith("org.lwjgl:lwjgl:3.4")) {
+                return "3.4.1";
+            }
+        }
+        return null;
+    }
+
+    public static String getLwjglNativesDir(Context ctx, MinecraftInstances.Instance instance) {
+        return ctx.getFilesDir() + "/lwjgl3/" + instance.lwjglVersion + "/natives";
     }
 
     public static ArrayList<File> locateLibs(File path) {
@@ -194,7 +212,7 @@ public class JREUtils {
 
     // Called before game launch to ensure all files are present and correct
     public static void prelaunchCheck(Activity activity, MinecraftInstances.Instance instance) throws IOException, ExecutionException, InterruptedException {
-        UnityPlayerActivity.installLWJGL(activity);
+        UnityPlayerActivity.installLWJGL(activity, instance);
         Installer.installJVM(activity, instance);
         Installer.installClient(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
         Installer.installLibraries(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
@@ -312,7 +330,8 @@ public class JREUtils {
                 "-Duser.language=" + System.getProperty("user.language"),
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
-                "-Dorg.lwjgl.librarypath=" + ctx.getApplicationInfo().nativeLibraryDir,
+                // Searched before java.library.path, so LWJGL 3.4 instances pick up their own liblwjgl*.so
+                "-Dorg.lwjgl.librarypath=" + (instance.lwjglVersion != null ? getLwjglNativesDir(ctx, instance) : ctx.getApplicationInfo().nativeLibraryDir),
                 "-Djna.boot.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,
                 "-Djna.nosys=true",
                 "-Djava.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,

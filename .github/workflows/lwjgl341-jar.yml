@@ -1,0 +1,31 @@
+name: Build LWJGL 3.4.1 classes jar
+
+# Builds src/main/assets/lwjgl/3.4.1/{lwjgl-glfw-classes,lwjgl}.jar from :jre_lwjgl3glfw_341.
+# Like the 3.3 jar, the output is committed to the repo.
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "jre_lwjgl3glfw_341/**"
+      - ".github/workflows/lwjgl341-jar.yml"
+
+jobs:
+  jar:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build jar
+        run: |
+          chmod +x gradlew
+          ./gradlew :jre_lwjgl3glfw_341:jar --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lwjgl-3.4.1-classes
+          path: src/main/assets/lwjgl/3.4.1/*.jar

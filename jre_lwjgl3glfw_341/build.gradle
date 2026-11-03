@@ -1,0 +1,64 @@
+// LWJGL 3.4.1 counterpart of :jre_lwjgl3glfw, used by Minecraft versions that ship LWJGL 3.4 (26.1+).
+// libs/ holds the Android build from github.com/kelvinalumotos/lwjgl3 (branch questcraft/3.4.1).
+// Layout follows Amethyst-Android's jre_lwjgl3glfw/lwjgl-3.4.1.
+plugins {
+    id 'java'
+}
+
+def lwjglVersion = "3.4.1"
+group = 'org.lwjgl.glfw'
+
+// Merged together with the overrides into lwjgl-glfw-classes.jar.
+// lwjgl.jar is copied next to it instead: it is a Multi-Release jar (versions 11/17/25)
+// and merging would drop that manifest attribute.
+def mergedModules = [
+        "lwjgl-glfw.jar",
+        "lwjgl-opengl.jar",
+        "lwjgl-openal.jar",
+        "lwjgl-stb.jar",
+        "lwjgl-tinyfd.jar",
+        "lwjgl-jemalloc.jar",
+        "lwjgl-freetype.jar",
+        "lwjgl-nanovg.jar"
+]
+
+configurations {
+    lwjglModules {
+        canBeResolved = true
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    lwjglModules fileTree(dir: 'libs', include: mergedModules)
+    // LWJGL 3.4 moved from jsr305 to jspecify annotations
+    compileOnly "org.jspecify:jspecify:1.0.0"
+}
+
+def outputDir = file("../src/main/assets/lwjgl/$lwjglVersion/")
+
+jar {
+    // Overrides are added first, so EXCLUDE keeps them over the stock classes
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    archiveBaseName = "lwjgl-glfw-classes"
+    destinationDirectory.set(outputDir)
+    from {
+        configurations.lwjglModules.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    exclude 'net/java/openjdk/cacio/ctc/**'
+    exclude 'META-INF/versions/**'
+    preserveFileTimestamps = false
+    reproducibleFileOrder = true
+
+    doLast {
+        copy {
+            from file('libs/lwjgl.jar')
+            into outputDir
+        }
+    }
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_1_8
+    targetCompatibility = JavaVersion.VERSION_1_8
+}
