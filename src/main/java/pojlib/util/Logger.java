@@ -105,6 +105,62 @@ public class Logger {
         mRepeats = 0;
 
         mLogStream.println(colorize(line));
+        updateProgress(line);
+    }
+
+    // ---- Startup progress, from the milestones that show up in the log ----
+
+    private static final Object[][] MILESTONES = {
+            {Pattern.compile("^Checking LWJGL"), 5, "Preparando LWJGL"},
+            {Pattern.compile("^Checking JRE"), 10, "Verificando o Java"},
+            {Pattern.compile("^Installing JRE"), 12, "Baixando o Java"},
+            {Pattern.compile("^Checking Client"), 18, "Verificando o Minecraft"},
+            {Pattern.compile("^Checking Libraries"), 24, "Verificando bibliotecas"},
+            {Pattern.compile("^Checking assets"), 30, "Verificando assets"},
+            {Pattern.compile("^Modifying Vivecraft config"), 34, "Configurando o Vivecraft"},
+            {Pattern.compile("^QuestCraft: Setting JVM memory"), 38, "Iniciando o Java"},
+            {Pattern.compile("Done processing args"), 42, "Java iniciado"},
+            {Pattern.compile("Loading Minecraft .* with Fabric"), 48, "Minecraft carregando (Fabric)"},
+            {Pattern.compile("Loading \\d+ mods"), 52, "Carregando mods"},
+            {Pattern.compile("Vivecraft: applying"), 56, "Aplicando ajustes do Vivecraft"},
+            {Pattern.compile("Setting user"), 62, "Conta conectada"},
+            {Pattern.compile("Backend library"), 68, "Iniciando janela e OpenGL"},
+            {Pattern.compile("Backend API|OpenGL|GL version"), 74, "OpenGL pronto"},
+            {Pattern.compile("Reloading ResourceManager"), 82, "Carregando recursos"},
+            {Pattern.compile("Created: \\d+x\\d+"), 90, "Montando texturas"},
+            {Pattern.compile("Sound engine started|OpenXR initialized|VR connected"), 100, "Minecraft iniciado!"},
+    };
+    private static final Pattern PROGRESS_FAILED = Pattern.compile("Game crashed|Java Exit code: -?[1-9]|Crash report saved");
+    private int mProgress = 0;
+
+    private void updateProgress(String line) {
+        // A new launch starts over
+        if (((Pattern) MILESTONES[0][0]).matcher(line).find()) {
+            mProgress = 0;
+        }
+        if (mProgress > 0 && mProgress < 100 && PROGRESS_FAILED.matcher(line).find()) {
+            mLogStream.println("<b>" + color(RED, progressBar(mProgress) + " PAROU EM " + mProgress + "% (o jogo fechou com erro)") + "</b>");
+            mProgress = 0;
+            return;
+        }
+        for (Object[] m : MILESTONES) {
+            int percent = (Integer) m[1];
+            if (percent > mProgress && ((Pattern) m[0]).matcher(line).find()) {
+                mProgress = percent;
+                String hex = percent == 100 ? GREEN : CYAN;
+                mLogStream.println("<b>" + color(hex, progressBar(percent) + " " + percent + "% " + m[2]) + "</b>");
+                return;
+            }
+        }
+    }
+
+    private static String progressBar(int percent) {
+        int filled = percent / 5;
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < 20; i++) {
+            sb.append(i < filled ? '#' : '-');
+        }
+        return sb.append(']').toString();
     }
 
     private String colorize(String line) {
