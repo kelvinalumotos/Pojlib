@@ -39,7 +39,7 @@ public class Installer {
         String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/" + runtime + ".zip";
         if (runtime.equals("JRE-25")) {
             // test build: the Java 25 runtime is only published on the fork
-            jreURL = "https://github.com/kelvinalumotos/android-openjdk-build-multiarch/releases/download/jre-25.0.5/JRE-25.zip";
+            jreURL = "https://github.com/kelvinalumotos/android-openjdk-build-multiarch/releases/download/jre-25.0.5-2/JRE-25.zip";
         }
 
         // Records which download a runtime came from, so a fixed or updated build replaces it.

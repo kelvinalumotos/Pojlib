@@ -8,6 +8,10 @@ on:
     branches:
       - questcraft-26-test
 
+permissions:
+  contents: read
+  actions: read
+
 jobs:
   apk:
     runs-on: ubuntu-24.04
@@ -38,12 +42,26 @@ jobs:
       - name: Patch APK
         run: bash ci/patch-apk.sh build/outputs/aar/Pojlib-release.aar QCXR-6.0.0.apk unsigned.apk
 
-      # One key for every test build, so later builds install over earlier ones
+      # One key for every test build, so later builds install over earlier ones (keeping app data).
+      # Without the TEST_KEYSTORE_B64 secret, the key is carried over from the last successful build's artifact.
+      - name: Reuse the previous test key
+        if: ${{ env.TEST_KEYSTORE_B64 == '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          prev=$(gh run list -R "$GITHUB_REPOSITORY" --workflow test-apk.yml --status success -L 1 --json databaseId --jq '.[0].databaseId // empty')
+          if [ -n "$prev" ] && gh run download "$prev" -R "$GITHUB_REPOSITORY" -n test-keystore -D prev-key; then
+            cp prev-key/test.keystore test.keystore
+            echo "using the key of run $prev"
+          else
+            echo "no previous key found, a new one will be generated"
+          fi
+
       - name: Sign
         run: |
           if [ -n "$TEST_KEYSTORE_B64" ]; then
             echo "$TEST_KEYSTORE_B64" | base64 -d > test.keystore
-          else
+          elif [ ! -f test.keystore ]; then
             keytool -genkeypair -keystore test.keystore -storepass questcraft-test -keypass questcraft-test \
               -alias test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=QuestCraft 26.1 test build"
           fi
@@ -57,7 +75,7 @@ jobs:
           name: QCXR-26.1.2-test
           path: QCXR-26.1.2-test.apk
 
-      - name: Keep the generated key
+      - name: Keep the key for the next build
         if: ${{ env.TEST_KEYSTORE_B64 == '' }}
         uses: actions/upload-artifact@v4
         with:
