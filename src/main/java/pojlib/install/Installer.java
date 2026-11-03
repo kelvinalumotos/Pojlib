@@ -36,6 +36,10 @@ public class Installer {
         String runtimeDir = JREUtils.getRuntimeDir(activity, instance);
         File jre = new File(runtimeDir);
         String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/" + runtime + ".zip";
+        if (runtime.equals("JRE-25")) {
+            // test build: the Java 25 runtime is only published on the fork
+            jreURL = "https://github.com/kelvinalumotos/android-openjdk-build-multiarch/releases/download/jre-25.0.5/JRE-25.zip";
+        }
 
         try {
             if (!jre.exists()) {

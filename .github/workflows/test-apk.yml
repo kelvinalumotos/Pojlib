@@ -1,0 +1,65 @@
+name: Test APK
+
+# Test build for Minecraft 26.1.2: the official QCXR 6.0.0 APK with this branch's Pojlib swapped in.
+# It is signed with a test key, so the official QuestCraft has to be uninstalled before installing it.
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - questcraft-26-test
+
+jobs:
+  apk:
+    runs-on: ubuntu-24.04
+    env:
+      TEST_KEYSTORE_B64: ${{ secrets.TEST_KEYSTORE_B64 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+          submodules: true
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Build Pojlib AAR
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --stacktrace
+
+      - name: Get apktool and the official APK
+        run: |
+          echo "BT=$(ls -d $ANDROID_HOME/build-tools/* | sort -V | tail -1)" >> "$GITHUB_ENV"
+          curl -sSfL -o apktool.jar https://github.com/iBotPeaches/Apktool/releases/download/v2.10.0/apktool_2.10.0.jar
+          curl -sSfL -o QCXR-6.0.0.apk https://github.com/QuestCraftPlusPlus/QuestCraft/releases/download/6.0.0/QCXR-6.0.0.apk
+
+      - name: Patch APK
+        run: bash ci/patch-apk.sh build/outputs/aar/Pojlib-release.aar QCXR-6.0.0.apk unsigned.apk
+
+      # One key for every test build, so later builds install over earlier ones
+      - name: Sign
+        run: |
+          if [ -n "$TEST_KEYSTORE_B64" ]; then
+            echo "$TEST_KEYSTORE_B64" | base64 -d > test.keystore
+          else
+            keytool -genkeypair -keystore test.keystore -storepass questcraft-test -keypass questcraft-test \
+              -alias test -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=QuestCraft 26.1 test build"
+          fi
+          "$BT/zipalign" -p -f 4 unsigned.apk aligned.apk
+          "$BT/apksigner" sign --ks test.keystore --ks-pass pass:questcraft-test --key-pass pass:questcraft-test \
+            --ks-key-alias test --out QCXR-26.1.2-test.apk aligned.apk
+          "$BT/apksigner" verify QCXR-26.1.2-test.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: QCXR-26.1.2-test
+          path: QCXR-26.1.2-test.apk
+
+      - name: Keep the generated key
+        if: ${{ env.TEST_KEYSTORE_B64 == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-keystore
+          path: test.keystore
