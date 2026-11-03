@@ -5,9 +5,8 @@ name: Build LWJGL 3.4.1 classes jar
 on:
   workflow_dispatch:
   push:
-    paths:
-      - "jre_lwjgl3glfw_341/**"
-      - ".github/workflows/lwjgl341-jar.yml"
+    branches:
+      - java25-runtime
 
 jobs:
   jar:
