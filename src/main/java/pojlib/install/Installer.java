@@ -30,25 +30,27 @@ import java.util.concurrent.TimeUnit;
 //This works for the base game as well as mod loaders
 public class Installer {
 
-    public static void installJVM(Activity activity) {
-        Logger.getInstance().appendToLog("Checking JRE");
-        File jre = new File(activity.getFilesDir(), "runtimes/JRE");
-        String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE.zip";
+    public static void installJVM(Activity activity, MinecraftInstances.Instance instance) {
+        String runtime = JREUtils.getRuntimeName(instance);
+        Logger.getInstance().appendToLog("Checking " + runtime);
+        String runtimeDir = JREUtils.getRuntimeDir(activity, instance);
+        File jre = new File(runtimeDir);
+        String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/" + runtime + ".zip";
 
         try {
             if (!jre.exists()) {
-                Logger.getInstance().appendToLog("Installing JRE");
-                File jreZip = new File(activity.getFilesDir() + "/runtimes/JRE.zip");
+                Logger.getInstance().appendToLog("Installing " + runtime);
+                File jreZip = new File(runtimeDir + ".zip");
                 DownloadUtils.downloadFile(jreURL, jreZip);
                 DownloadManager.reset();
-                FileUtil.unzipArchive(jreZip.getPath(), activity.getFilesDir() + "/runtimes/JRE");
-                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(activity.getFilesDir() + "/runtimes/JRE/lib/libawt_xawt.so"));
+                FileUtil.unzipArchive(jreZip.getPath(), runtimeDir);
+                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(runtimeDir + "/lib/libawt_xawt.so"));
                 jreZip.delete();
             }
 
-            Logger.getInstance().appendToLog("JRE installed");
+            Logger.getInstance().appendToLog(runtime + " installed");
         } catch (IOException e) {
-            Logger.getInstance().appendToLog("Failed to install JRE: " + e.getMessage());
+            Logger.getInstance().appendToLog("Failed to install " + runtime + ": " + e.getMessage());
             e.printStackTrace();
         }
     }

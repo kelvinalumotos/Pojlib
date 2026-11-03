@@ -63,6 +63,15 @@ public class JREUtils {
         return libName;
     }
 
+    // Minecraft 26.1+ needs Java 25, older versions keep the original runtime
+    public static String getRuntimeName(MinecraftInstances.Instance instance) {
+        return instance.javaVersion >= 25 ? "JRE-25" : "JRE";
+    }
+
+    public static String getRuntimeDir(Context ctx, MinecraftInstances.Instance instance) {
+        return ctx.getFilesDir() + "/runtimes/" + getRuntimeName(instance);
+    }
+
     public static ArrayList<File> locateLibs(File path) {
         ArrayList<File> returnValue = new ArrayList<>();
         File[] list = path.listFiles();
@@ -141,7 +150,7 @@ public class JREUtils {
     public static void relocateLibPath(final Context ctx) {
         sNativeLibDir = ctx.getApplicationInfo().nativeLibraryDir;
 
-        LD_LIBRARY_PATH = ctx.getFilesDir() + "/runtimes/JRE/bin:" + ctx.getFilesDir() + "/runtimes/JRE/lib:" +
+        LD_LIBRARY_PATH = runtimeDir + "/bin:" + runtimeDir + "/lib:" +
                 "/system/lib64:/vendor/lib64:/vendor/lib64/hw:" +
                 sNativeLibDir;
     }
@@ -149,7 +158,7 @@ public class JREUtils {
     public static void setJavaEnvironment(Activity activity, MinecraftInstances.Instance instance) throws Throwable {
         Map<String, String> envMap = new ArrayMap<>();
         envMap.put("POJLIB_NATIVEDIR", activity.getApplicationInfo().nativeLibraryDir);
-        envMap.put("JAVA_HOME", activity.getFilesDir() + "/runtimes/JRE");
+        envMap.put("JAVA_HOME", runtimeDir);
         envMap.put("HOME", instance.gameDir);
         //envMap.put("APP_HOME", Constants.USER_HOME);
         envMap.put("TMPDIR", activity.getCacheDir().getAbsolutePath());
@@ -157,7 +166,7 @@ public class JREUtils {
         envMap.put("POJLIB_RENDERER", "LightThinWrapper");
 
         envMap.put("LD_LIBRARY_PATH", LD_LIBRARY_PATH);
-        envMap.put("PATH", activity.getFilesDir() + "/runtimes/JRE/bin:" + Os.getenv("PATH"));
+        envMap.put("PATH", runtimeDir + "/bin:" + Os.getenv("PATH"));
 
         File customEnvFile = new File(Constants.USER_HOME, "custom_env.txt");
         if (customEnvFile.exists() && customEnvFile.isFile()) {
@@ -176,8 +185,8 @@ public class JREUtils {
             Os.setenv(env.getKey(), env.getValue(), true);
         }
 
-        File serverFile = new File(activity.getFilesDir() + "/runtimes/JRE/lib/server/libjvm.so");
-        jvmLibraryPath = activity.getFilesDir() + "/runtimes/JRE/lib/" + (serverFile.exists() ? "server" : "client");
+        File serverFile = new File(runtimeDir + "/lib/server/libjvm.so");
+        jvmLibraryPath = runtimeDir + "/lib/" + (serverFile.exists() ? "server" : "client");
         Log.d("DynamicLoader","Base LD_LIBRARY_PATH: "+LD_LIBRARY_PATH);
         Log.d("DynamicLoader","Internal LD_LIBRARY_PATH: "+jvmLibraryPath+":"+LD_LIBRARY_PATH);
         setLdLibraryPath(jvmLibraryPath+":"+LD_LIBRARY_PATH);
@@ -186,13 +195,14 @@ public class JREUtils {
     // Called before game launch to ensure all files are present and correct
     public static void prelaunchCheck(Activity activity, MinecraftInstances.Instance instance) throws IOException, ExecutionException, InterruptedException {
         UnityPlayerActivity.installLWJGL(activity);
-        Installer.installJVM(activity);
+        Installer.installJVM(activity, instance);
         Installer.installClient(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
         Installer.installLibraries(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
         Installer.installAssets(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
     }
 
     public static int launchJavaVM(final Activity activity, final List<String> JVMArgs, MinecraftInstances.Instance instance) throws Throwable {
+        runtimeDir = getRuntimeDir(activity, instance);
         JREUtils.relocateLibPath(activity);
         setJavaEnvironment(activity, instance);
 
@@ -222,7 +232,10 @@ public class JREUtils {
 
         // Garbage collection
         userArgs.add("-XX:+UseZGC");
-        userArgs.add("-XX:+ZGenerational");
+        // Generational is the only ZGC mode since Java 24, where the flag is obsolete
+        if (instance.javaVersion < 24) {
+            userArgs.add("-XX:+ZGenerational");
+        }
         userArgs.add("-XX:-ZProactive");
         userArgs.add("-XX:+UnlockDiagnosticVMOptions");
         userArgs.add("-XX:-ImplicitNullChecks");
@@ -241,8 +254,6 @@ public class JREUtils {
 
         userArgs.addAll(JVMArgs);
         System.out.println(JVMArgs);
-
-        runtimeDir = activity.getFilesDir() + "/runtimes/JRE";
 
         initJavaRuntime();
         chdir(instance.gameDir);
@@ -295,7 +306,7 @@ public class JREUtils {
             Logger.getInstance().appendToLog("Couldn't write DNS servers! " + e.getMessage());
         }
         return new ArrayList<>(Arrays.asList(
-                "-Djava.home=" + new File(ctx.getFilesDir(), "runtimes/JRE"),
+                "-Djava.home=" + getRuntimeDir(ctx, instance),
                 "-Djava.io.tmpdir=" + ctx.getCacheDir().getAbsolutePath(),
                 "-Duser.home=" + instance.gameDir,
                 "-Duser.language=" + System.getProperty("user.language"),

@@ -75,6 +75,8 @@ public class MinecraftInstances {
         public String assetIndex;
         public String assetsDir;
         public String mainClass;
+        // Java major version the game needs, 0 for instances made before this was stored
+        public int javaVersion;
         public ProjectInfo[] extProjects;
         public boolean defaultMods;
 

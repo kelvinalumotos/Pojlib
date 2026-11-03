@@ -163,6 +163,7 @@ public class InstanceHandler {
         VersionInfo minecraftVersionInfo = MinecraftMeta.getVersionInfo(minecraftVersion);
         instance.versionType = minecraftVersionInfo.type;
         instance.mainClass = modLoaderVersionInfo.mainClass;
+        instance.javaVersion = minecraftVersionInfo.javaVersion != null ? minecraftVersionInfo.javaVersion.majorVersion : 0;
 
         // Install minecraft
         VersionInfo finalModLoaderVersionInfo = modLoaderVersionInfo;

@@ -19,6 +19,13 @@ public class VersionInfo {
     public Arguments arguments;
     @SerializedName("assets")
     public String assets;
+    @SerializedName("javaVersion")
+    public JavaVersion javaVersion;
+
+    public static class JavaVersion {
+        @SerializedName("majorVersion")
+        public int majorVersion;
+    }
 
     public static class AssetIndex {
         @SerializedName("id")
