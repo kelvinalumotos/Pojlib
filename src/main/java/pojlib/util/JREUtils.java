@@ -254,6 +254,11 @@ public class JREUtils {
         if (instance.javaVersion < 24) {
             userArgs.add("-XX:+ZGenerational");
         }
+        if (instance.javaVersion >= 25) {
+            // ZGC turns UseNUMA on by default, and JDK 25 then probes the get_mempolicy syscall.
+            // Android's seccomp filter kills the app on that call (SIGSYS) instead of failing it.
+            userArgs.add("-XX:-UseNUMA");
+        }
         userArgs.add("-XX:-ZProactive");
         userArgs.add("-XX:+UnlockDiagnosticVMOptions");
         userArgs.add("-XX:-ImplicitNullChecks");
