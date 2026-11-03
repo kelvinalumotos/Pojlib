@@ -258,6 +258,8 @@ public class JREUtils {
             // ZGC turns UseNUMA on by default, and JDK 25 then probes the get_mempolicy syscall.
             // Android's seccomp filter kills the app on that call (SIGSYS) instead of failing it.
             userArgs.add("-XX:-UseNUMA");
+            // test build: thread dumps in latestlog.txt (see GLFW.startStackDumper in jre_lwjgl3glfw_341)
+            userArgs.add("-Dquestcraft.stackdump=20");
         }
         userArgs.add("-XX:-ZProactive");
         userArgs.add("-XX:+UnlockDiagnosticVMOptions");

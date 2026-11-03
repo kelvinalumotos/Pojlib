@@ -31,6 +31,8 @@ jobs:
       - name: Build Pojlib AAR
         run: |
           chmod +x gradlew
+          # rebuild the LWJGL 3.4.1 classes jar first so override changes reach the APK
+          ./gradlew :jre_lwjgl3glfw_341:jar --stacktrace
           ./gradlew assembleRelease --stacktrace
 
       - name: Get apktool and the official APK

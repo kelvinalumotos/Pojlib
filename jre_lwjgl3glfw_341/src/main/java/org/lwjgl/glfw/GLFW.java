@@ -517,7 +517,38 @@ public class GLFW
     private static final String PROP_WINDOW_HEIGHT= "glfwstub.windowHeight";
     public static long mainContext = 0;
 
+    // Test builds only: -Dquestcraft.stackdump=<seconds> prints every thread's stack periodically,
+    // since a hung game JVM on Android cannot be sent SIGQUIT or attached to without root.
+    private static void startStackDumper() {
+        String period = System.getProperty("questcraft.stackdump");
+        if (period == null) {
+            return;
+        }
+        final long millis = Long.parseLong(period) * 1000L;
+        Thread dumper = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(millis);
+                } catch (InterruptedException e) {
+                    return;
+                }
+                StringBuilder sb = new StringBuilder("===== questcraft stack dump =====\n");
+                for (java.util.Map.Entry<Thread, StackTraceElement[]> e : Thread.getAllStackTraces().entrySet()) {
+                    Thread t = e.getKey();
+                    sb.append('"').append(t.getName()).append("\" ").append(t.getState()).append('\n');
+                    for (StackTraceElement el : e.getValue()) {
+                        sb.append("    at ").append(el).append('\n');
+                    }
+                }
+                System.out.println(sb);
+            }
+        }, "QuestCraft stack dumper");
+        dumper.setDaemon(true);
+        dumper.start();
+    }
+
     static {
+        startStackDumper();
         String windowWidth = System.getProperty(PROP_WINDOW_WIDTH);
         String windowHeight = System.getProperty(PROP_WINDOW_HEIGHT);
         if (windowWidth == null || windowHeight == null) {
