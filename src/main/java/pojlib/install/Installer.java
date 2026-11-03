@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
@@ -37,15 +38,26 @@ public class Installer {
         File jre = new File(runtimeDir);
         String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/" + runtime + ".zip";
 
+        // Records which download a runtime came from, so a fixed or updated build replaces it.
+        // The default JRE is left alone: existing installs have no marker and must not re-download.
+        File source = new File(runtimeDir + ".source");
+
         try {
+            if (jre.exists() && !runtime.equals("JRE")
+                    && (!source.isFile() || !FileUtil.read(source.getPath()).trim().equals(jreURL))) {
+                Logger.getInstance().appendToLog(runtime + " comes from another build, replacing it");
+                FileUtils.deleteDirectory(jre);
+            }
+
             if (!jre.exists()) {
                 Logger.getInstance().appendToLog("Installing " + runtime);
                 File jreZip = new File(runtimeDir + ".zip");
                 DownloadUtils.downloadFile(jreURL, jreZip);
                 DownloadManager.reset();
                 FileUtil.unzipArchive(jreZip.getPath(), runtimeDir);
-                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(runtimeDir + "/lib/libawt_xawt.so"));
+                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(runtimeDir + "/lib/libawt_xawt.so"), StandardCopyOption.REPLACE_EXISTING);
                 jreZip.delete();
+                FileUtil.write(source.getPath(), jreURL.getBytes());
             }
 
             Logger.getInstance().appendToLog(runtime + " installed");
