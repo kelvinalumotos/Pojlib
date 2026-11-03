@@ -284,6 +284,8 @@ public class JREUtils {
         chdir(instance.gameDir);
         userArgs.add(0,"java"); //argv[0] is the program name according to C standard.
 
+        // test build: render thread CPU, loop and hang warnings in the launcher log
+        GameMonitor.start();
         int exitCode = VMLauncher.launchJVM(userArgs.toArray(new String[0]));
         Logger.getInstance().appendToLog("Java Exit code: " + exitCode);
         return exitCode;
