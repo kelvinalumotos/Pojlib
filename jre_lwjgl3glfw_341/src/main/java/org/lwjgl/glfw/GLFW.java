@@ -1146,7 +1146,10 @@ public class GLFW
     public static void glfwPostEmptyEvent() {}
 
     public static int glfwGetInputMode(@NativeType("GLFWwindow *") long window, int mode) {
-        return internalGetWindow(window).inputModes.get(mode);
+        // Modes that were never set read as GLFW_FALSE; Minecraft 26.1 asks for GLFW_IME, which is
+        // never set here (no IME on Quest) and used to throw a NullPointerException on unboxing
+        Integer value = internalGetWindow(window).inputModes.get(mode);
+        return value != null ? value : GLFW_FALSE;
     }
 
     public static void glfwSetInputMode(@NativeType("GLFWwindow *") long window, int mode, int value) {
