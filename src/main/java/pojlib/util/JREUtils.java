@@ -259,7 +259,10 @@ public class JREUtils {
             // Android's seccomp filter kills the app on that call (SIGSYS) instead of failing it.
             userArgs.add("-XX:-UseNUMA");
             // test build: thread dumps in latestlog.txt (see GLFW.startStackDumper in jre_lwjgl3glfw_341)
-            userArgs.add("-Dquestcraft.stackdump=20");
+            userArgs.add("-Dquestcraft.stackdump=60");
+            // test build: log which file each LWJGL native library is loaded from
+            userArgs.add("-Dorg.lwjgl.util.Debug=true");
+            userArgs.add("-Dorg.lwjgl.util.DebugLoader=true");
         }
         userArgs.add("-XX:-ZProactive");
         userArgs.add("-XX:+UnlockDiagnosticVMOptions");
