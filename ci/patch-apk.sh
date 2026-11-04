@@ -55,5 +55,29 @@ done
 # --- Assets (lwjgl jars and natives, default configs)
 cp -r "$W/aar/assets/." "$W/apk/assets/"
 
+# --- Version shown at the top of the launcher (Unity's Application.version = the manifest's versionName).
+# Resources are not decoded, so the manifest is still binary: swap the string in place. Only same-length
+# versions work this way, and exactly one occurrence must be found.
+if [ -n "${VERSION_NAME:-}" ]; then
+    FROM="${VERSION_FROM:-6.0.0}"
+    if [ "${#FROM}" -ne "${#VERSION_NAME}" ]; then
+        echo "VERSION_NAME must have the same length as $FROM" >&2
+        exit 1
+    fi
+    count=$(FROM="$FROM" TO="$VERSION_NAME" perl -0777 -i -pe '
+        my ($f, $t) = ($ENV{FROM}, $ENV{TO});
+        my ($f16, $t16) = (join("\0", split //, $f) . "\0", join("\0", split //, $t) . "\0");
+        # the string pool is UTF-16LE or UTF-8
+        my $n = s/\Q$f16\E/$t16/g;
+        $n ||= s/\Q$f\E/$t/g;
+        print STDERR "$n\n";
+    ' "$W/apk/AndroidManifest.xml" 2>&1 >/dev/null | tail -1)
+    if [ "$count" != "1" ]; then
+        echo "expected one versionName $FROM in the manifest, found ${count:-0}" >&2
+        exit 1
+    fi
+    echo "versionName $FROM -> $VERSION_NAME"
+fi
+
 $APKTOOL b -o "$OUT" "$W/apk"
 echo "built $OUT"

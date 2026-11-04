@@ -42,6 +42,9 @@ jobs:
           curl -sSfL -o QCXR-6.0.0.apk https://github.com/QuestCraftPlusPlus/QuestCraft/releases/download/6.0.0/QCXR-6.0.0.apk
 
       - name: Patch APK
+        env:
+          # version shown at the top of the launcher
+          VERSION_NAME: 7.0.0
         run: bash ci/patch-apk.sh build/outputs/aar/Pojlib-release.aar QCXR-6.0.0.apk unsigned.apk
 
       # One key for every test build, so later builds install over earlier ones (keeping app data).
