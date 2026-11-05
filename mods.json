@@ -64,6 +64,11 @@
           "slug": "Simple-Voice-Chat",
           "version": "fabric-2.6.27+26.1.2",
           "download_link": "https://cdn.modrinth.com/data/9eGKb6K1/versions/PVub6ooe/voicechat-fabric-2.6.27%2B26.1.2.jar"
+        },
+        {
+          "slug": "LAN-World-Plug-n-Play",
+          "version": "2.0.8",
+          "download_link": "https://cdn.modrinth.com/data/RTWpcTBp/versions/Ozm58dTo/mcwifipnp-2.0.8-26.1.2-fabric.jar"
         }
       ]
     },
