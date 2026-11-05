@@ -20,6 +20,7 @@ public class GameMonitor {
     private static final long PERIOD_MS = 5000;
     private static final long STATUS_EVERY_MS = 10000;
     private static final long ALERT_EVERY_MS = 30000;
+    private static final long USER_STATUS_EVERY_MS = 20000;
 
     private static Thread sThread;
 
@@ -39,7 +40,7 @@ public class GameMonitor {
         }
         Logger log = Logger.getInstance();
         int tid = -1;
-        long prevTicks = -1, prevTime = 0, lastStatus = 0, lastAlert = 0;
+        long prevTicks = -1, prevTime = 0, lastStatus = 0, lastAlert = 0, lastUserStatus = 0;
 
         while (true) {
             try {
@@ -50,6 +51,15 @@ public class GameMonitor {
             if (API.gameReady || log.isGameOpened()) {
                 log.writeStatus("jogo aberto, monitor desligado");
                 return;
+            }
+
+            // reassure the player in the launcher view while a step takes long
+            long nowUser = SystemClock.elapsedRealtime();
+            if (nowUser - lastUserStatus >= USER_STATUS_EVERY_MS) {
+                if (lastUserStatus != 0) {
+                    log.writeUserStatus("Ainda carregando: " + log.describeStep());
+                }
+                lastUserStatus = nowUser;
             }
 
             if (tid < 0 || readCpuTicks(tid) < 0) {

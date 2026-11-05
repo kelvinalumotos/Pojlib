@@ -15,8 +15,12 @@ import java.util.regex.Pattern;
 public class Logger {
 
     /* Instance variables */
+    // latestlog.txt is what the launcher shows: only the loading progress, hang/loop warnings and errors.
+    // Everything else goes to latestlog-completo.txt, for debugging.
     private final File mLogFile;
+    private final File mFullLogFile;
     private PrintStream mLogStream;
+    private PrintStream mFullStream;
     private WeakReference<eventLogListener> mLogListenerWeakReference = null;
 
     /* No public construction */
@@ -26,13 +30,24 @@ public class Logger {
 
     private Logger(String fileName){
         mLogFile = new File(Constants.USER_HOME, fileName);
-        // Make a new instance of the log file
-        mLogFile.delete();
+        mFullLogFile = new File(Constants.USER_HOME, fileName.replace(".txt", "-completo.txt"));
+        openFiles();
+    }
+
+    private void openFiles() {
         try {
+            mLogFile.delete();
             mLogFile.createNewFile();
             mLogStream = new PrintStream(mLogFile.getAbsolutePath());
-        }catch (IOException e){e.printStackTrace();}
-
+            mFullLogFile.delete();
+            mFullLogFile.createNewFile();
+            mFullStream = new PrintStream(mFullLogFile.getAbsolutePath());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        mProgress = 0;
+        mErrorShown = false;
+        mRecentErrors.clear();
     }
 
     private static final class SLoggerSingletonHolder {
@@ -93,19 +108,62 @@ public class Logger {
         // Collapse identical consecutive lines and flag a possible loop
         if (line.equals(mLastLine)) {
             mRepeats++;
-            if (mRepeats == 50) {
+            if (mRepeats == 50 && !mGameOpened) {
                 writeBanner(RED, "POSSIVEL LOOP: a mesma linha se repetiu 50 vezes seguidas");
             }
             return;
         }
         if (mRepeats > 0) {
-            mLogStream.println(color(MAGENTA, "    ^ linha acima repetida mais " + mRepeats + " vez(es)"));
+            mFullStream.println(color(MAGENTA, "    ^ linha acima repetida mais " + mRepeats + " vez(es)"));
         }
         mLastLine = line;
         mRepeats = 0;
 
-        mLogStream.println(colorize(line));
+        mFullStream.println(colorize(line));
+        rememberError(line);
         updateProgress(line);
+        showUserError(line);
+    }
+
+    // ---- Errors in the launcher view: only those that stop the game, with the lines that led to them ----
+
+    private static final Pattern USER_ERROR = Pattern.compile(
+            "Game crashed|Java Exit code: -?[1-9]|Crash report saved|Exception in thread \"(main|Render thread)\"|Fatal signal|SIGSEGV|SIGABRT|SIGSYS|OutOfMemoryError|Failed to install|Unable to download|Mods failed to download|Could not download");
+    private final java.util.ArrayDeque<String> mRecentErrors = new java.util.ArrayDeque<>();
+    private boolean mErrorShown = false;
+
+    /** keeps the last few error lines (not the known harmless ones) to explain a crash */
+    private void rememberError(String line) {
+        if (KNOWN.matcher(line).find()) {
+            return;
+        }
+        if (FATAL.matcher(line).find() || (STACK.matcher(line).find() && !mRecentErrors.isEmpty())) {
+            mRecentErrors.addLast(line);
+            while (mRecentErrors.size() > 12) {
+                mRecentErrors.removeFirst();
+            }
+        }
+    }
+
+    private void showUserError(String line) {
+        if (!USER_ERROR.matcher(line).find()) {
+            return;
+        }
+        if (!mErrorShown) {
+            mErrorShown = true;
+            mLogStream.println();
+            mLogStream.println("<b>" + color(RED, "ERRO: " + line) + "</b>");
+            if (!mRecentErrors.isEmpty()) {
+                mLogStream.println(color(GRAY, "Ultimas mensagens de erro antes disso:"));
+                for (String e : mRecentErrors) {
+                    mLogStream.println(color(DARK_RED, e));
+                }
+            }
+            mLogStream.println(color(GRAY, "Log completo em latestlog-completo.txt"));
+        } else {
+            mLogStream.println(color(RED, line));
+        }
+        mLogStream.flush();
     }
 
     // ---- Startup progress, from the milestones that show up in the log ----
@@ -137,9 +195,11 @@ public class Logger {
         // A new launch starts over
         if (((Pattern) MILESTONES[0][0]).matcher(line).find()) {
             mProgress = 0;
+            mErrorShown = false;
+            mRecentErrors.clear();
         }
         if (mProgress > 0 && mProgress < 100 && PROGRESS_FAILED.matcher(line).find()) {
-            mLogStream.println("<b>" + color(RED, progressBar(mProgress) + " PAROU EM " + mProgress + "% (o jogo fechou com erro)") + "</b>");
+            writeBoth("<b>" + color(RED, progressBar(mProgress) + " PAROU EM " + mProgress + "% (o jogo fechou com erro)") + "</b>");
             mProgress = 0;
             return;
         }
@@ -147,11 +207,32 @@ public class Logger {
             int percent = (Integer) m[1];
             if (percent > mProgress && ((Pattern) m[0]).matcher(line).find()) {
                 mProgress = percent;
+                mStepName = (String) m[2];
+                mStepSince = System.currentTimeMillis();
                 String hex = percent == 100 ? GREEN : CYAN;
-                mLogStream.println("<b>" + color(hex, progressBar(percent) + " " + percent + "% " + m[2]) + "</b>");
+                writeBoth("<b>" + color(hex, progressBar(percent) + " " + percent + "% " + m[2]) + "</b>");
                 return;
             }
         }
+    }
+
+    private String mStepName = "Iniciando";
+    private long mStepSince = System.currentTimeMillis();
+
+    /** the current loading step and how long it has been going, for "still loading" messages */
+    public synchronized String describeStep() {
+        long seconds = (System.currentTimeMillis() - mStepSince) / 1000;
+        return mProgress + "% " + mStepName + " (" + seconds + "s nesta etapa)";
+    }
+
+    public int getProgress() {
+        return mProgress;
+    }
+
+    private void writeBoth(String text) {
+        mLogStream.println(text);
+        mLogStream.flush();
+        mFullStream.println(text);
     }
 
     private static String progressBar(int percent) {
@@ -185,14 +266,19 @@ public class Logger {
         return "<noparse>" + line + "</noparse>";
     }
 
-    /** A highlighted banner, e.g. for a detected loop or hang */
+    /** A highlighted banner, e.g. for a detected loop or hang, shown in the launcher too */
     public synchronized void writeBanner(String hex, String text) {
-        mLogStream.println("<b>" + color(hex, "==================== " + text + " ====================") + "</b>");
+        writeBoth("<b>" + color(hex, "==================== " + text + " ====================") + "</b>");
     }
 
-    /** A status line from GameMonitor; does not count as game output */
+    /** A status line from GameMonitor; does not count as game output, only in the full log */
     public synchronized void writeStatus(String text) {
-        mLogStream.println(color(GRAY, "[monitor] " + text));
+        mFullStream.println(color(GRAY, "[monitor] " + text));
+    }
+
+    /** A short "still loading" line for the launcher view */
+    public synchronized void writeUserStatus(String text) {
+        writeBoth(color(GRAY, text));
     }
 
     public long getLastLogTime() {
@@ -207,17 +293,16 @@ public class Logger {
     public static final String BANNER_YELLOW = YELLOW;
 
     /** Reset the log file, effectively erasing any previous logs */
-    public void reset(){
-        try{
-            mLogFile.delete();
-            mLogFile.createNewFile();
-            mLogStream = new PrintStream(mLogFile.getAbsolutePath());
-        }catch (IOException e){ e.printStackTrace();}
+    public synchronized void reset(){
+        mLogStream.close();
+        mFullStream.close();
+        openFiles();
     }
 
     /** Disables the printing */
     public void shutdown(){
         mLogStream.close();
+        mFullStream.close();
     }
 
     /**
